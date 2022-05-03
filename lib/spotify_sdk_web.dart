@@ -85,6 +85,7 @@ class SpotifySdkPlugin {
 
   static String? tokenSwapURL;
   static String? tokenRefreshURL;
+  static Map<String, String>? tokenSwapHeaders;
 
   /// constructor
   SpotifySdkPlugin(
@@ -523,6 +524,7 @@ class SpotifySdkPlugin {
       req = RequestOptions(
         path: tokenSwapURL!,
         method: 'POST',
+        headers: tokenSwapHeaders,
         data: {
           'code': parsedMessage.queryParameters['code'],
           'redirect_uri': redirectUrl,
@@ -570,6 +572,7 @@ class SpotifySdkPlugin {
       req = RequestOptions(
         path: tokenRefreshURL!,
         method: 'POST',
+        headers: tokenSwapHeaders,
         data: {
           'refresh_token': refreshToken,
         },
