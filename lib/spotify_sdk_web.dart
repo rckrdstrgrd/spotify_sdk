@@ -253,6 +253,10 @@ class SpotifySdkPlugin {
       case MethodNames.skipPrevious:
         await promiseToFuture(_currentPlayer?.previousTrack());
         break;
+      case MethodNames.seekTo:
+        await promiseToFuture(_currentPlayer
+            ?.seek(call.arguments[ParamNames.positionedMilliseconds] as int));
+        break;
       case MethodNames.getPlayerState:
         var stateRaw = await promiseToFuture(_currentPlayer?.getCurrentState())
             as WebPlaybackState?;
