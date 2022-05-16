@@ -28,6 +28,10 @@ export 'package:spotify_sdk/extensions/image_dimension_extension.dart';
 /// described [here](https://pub.dev/packages/spotify_sdk#usage)
 ///
 class SpotifySdk {
+  static String? tokenSwapURL;
+  static String? tokenRefreshURL;
+  static Map<String, String>? tokenSwapHeaders;
+
   // method channel
   static const MethodChannel _channel =
       MethodChannel(MethodChannels.spotifySdk);
@@ -76,7 +80,9 @@ class SpotifySdk {
       bool asRadio = false,
       String? scope,
       String playerName = 'Spotify SDK',
-      String? accessToken}) async {
+      String? accessToken,
+      String? tokenSwapUrl,
+      String? tokenRefreshURL}) async {
     try {
       return await _channel.invokeMethod(MethodNames.connectToSpotify, {
         ParamNames.clientId: clientId,
@@ -86,6 +92,8 @@ class SpotifySdk {
         ParamNames.scope: scope,
         ParamNames.spotifyUri: spotifyUri,
         ParamNames.asRadio: asRadio,
+        ParamNames.tokenSwapURL: tokenSwapUrl,
+        ParamNames.tokenRefreshURL: tokenRefreshURL
       });
     } on Exception catch (e) {
       _logException(MethodNames.connectToSpotify, e);

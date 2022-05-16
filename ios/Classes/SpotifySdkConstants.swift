@@ -42,6 +42,8 @@ public class SpotifySdkConstants
     public static let paramShuffle = "shuffle"
     public static let paramRepeatMode = "repeatMode"
     public static let paramTrackIndex = "trackIndex"
+    public static let paramTokenSwapUrl = "tokenSwapURL"
+    public static let paramTokenRefreshUrl = "tokenRefreshURL"
     public static let scope = "scope"
     public static let getLibraryState = "getLibraryState"
 }
