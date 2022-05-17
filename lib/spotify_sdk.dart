@@ -73,16 +73,15 @@ class SpotifySdk {
   /// Throws a [PlatformException] if connecting to the remote api failed
   /// Throws a [MissingPluginException] if the method is not implemented on
   /// the native platforms.
-  static Future<bool> connectToSpotifyRemote(
-      {required String clientId,
-      required String redirectUrl,
-      String spotifyUri = '',
-      bool asRadio = false,
-      String? scope,
-      String playerName = 'Spotify SDK',
-      String? accessToken,
-      String? tokenSwapUrl,
-      String? tokenRefreshURL}) async {
+  static Future<bool> connectToSpotifyRemote({
+    required String clientId,
+    required String redirectUrl,
+    String spotifyUri = '',
+    bool asRadio = false,
+    String? scope,
+    String playerName = 'Spotify SDK',
+    String? accessToken,
+  }) async {
     try {
       return await _channel.invokeMethod(MethodNames.connectToSpotify, {
         ParamNames.clientId: clientId,
@@ -92,7 +91,7 @@ class SpotifySdk {
         ParamNames.scope: scope,
         ParamNames.spotifyUri: spotifyUri,
         ParamNames.asRadio: asRadio,
-        ParamNames.tokenSwapURL: tokenSwapUrl,
+        ParamNames.tokenSwapURL: tokenSwapURL,
         ParamNames.tokenRefreshURL: tokenRefreshURL
       });
     } on Exception catch (e) {

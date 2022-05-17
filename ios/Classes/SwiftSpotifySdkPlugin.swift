@@ -1,7 +1,7 @@
 import Flutter
 import SpotifyiOS
 
-public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
+public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin, SPTSessionManagerDelegate{
 
     private var sessionManager: SPTSessionManager?
     private var appRemote: SPTAppRemote?
@@ -342,47 +342,38 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
     }
 
     private func connectToSpotify(clientId: String, redirectURL: String, accessToken: String? = nil, spotifyUri: String = "", asRadio: Bool?, additionalScopes: String? = nil, tokenSwapURL: String? = nil,tokenRefreshURL:String? = nil) throws {
+        var useSessionManager = tokenSwapURL != nil && tokenRefreshURL != nil
+        if  #unavailable(iOS 11.0) {
+            // SPTSessionManager initiateSessionWithScope requires view controller for ios < 11
+            // https://github.com/spotify/ios-sdk/blob/master/docs/auth.md (step 6)
+            useSessionManager = false;
+        }
+        
         func configureAppRemote(clientID: String, redirectURL: String, accessToken: String? = nil,tokenSwapURL: String? = nil,tokenRefreshURL:String? = nil) throws -> SPTConfiguration {
             guard let redirectURL = URL(string: redirectURL) else {
                 throw SpotifyError.redirectURLInvalid
             }
             let configuration = SPTConfiguration(clientID: clientID, redirectURL: redirectURL)
-
+            if(useSessionManager){
+                configuration.tokenSwapURL = URL(string: tokenSwapURL!)
+                configuration.tokenRefreshURL = URL(string: tokenRefreshURL!)
+            }
             let appRemote = SPTAppRemote(configuration: configuration, logLevel: .none)
             appRemote.delegate = connectionStatusHandler
             let playerDelegate = PlayerDelegate()
             playerStateHandler = PlayerStateHandler(appRemote: appRemote, playerDelegate: playerDelegate)
             SwiftSpotifySdkPlugin.playerStateChannel?.setStreamHandler(playerStateHandler)
-
             playerContextHandler = PlayerContextHandler(appRemote: appRemote, playerDelegate: playerDelegate)
             SwiftSpotifySdkPlugin.playerContextChannel?.setStreamHandler(playerContextHandler)
-
             appRemote.connectionParameters.accessToken = accessToken
             self.appRemote = appRemote
             return configuration;
         }
 
-        let configuration = try configureAppRemote(clientID: clientId, redirectURL: redirectURL, accessToken: accessToken)
-        
-        var useSessionManager = tokenSwapURL != nil && tokenRefreshURL != nil
-        if #available(iOS 11.0, *) {
-            // SPTSessionManager initiateSessionWithScope requires view controller for ios < 11
-            // https://github.com/spotify/ios-sdk/blob/master/docs/auth.md (step 6)
-            useSessionManager = false;
-        }
+        let configuration = try configureAppRemote(clientID: clientId, redirectURL: redirectURL, accessToken: accessToken, tokenSwapURL: tokenSwapURL,tokenRefreshURL: tokenRefreshURL)
+     
         if(useSessionManager){
-            configuration.tokenSwapURL = URL(string: tokenSwapURL!)
-            configuration.tokenRefreshURL = URL(string: tokenRefreshURL!)
-            sessionManager = SPTSessionManager(configuration: configuration,delegate: SessionHandler(didInitiateSession: { sptsession in
-                self.appRemote?.connectionParameters.accessToken = sptsession?.accessToken
-                if(self.appRemote != nil){
-                    self.connectionStatusHandler?.appRemoteDidEstablishConnection(self.appRemote!)
-                }
-            }, didFailSession: { error in
-                if(self.appRemote != nil){
-                    self.connectionStatusHandler?.appRemote(self.appRemote!, didDisconnectWithError: error)
-                }
-            }))
+            sessionManager = SPTSessionManager(configuration: configuration,delegate: self)
         }
         
         var scopes: [String]?
@@ -407,12 +398,40 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
        
     }
     
+    // MARK: - SPTSessionManagerDelegate
+    public func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
+           connectionStatusHandler?.connectionResult?(FlutterError(code: "authenticationTokenError", message:"", details: nil))
+           connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: "", details: nil))
+           connectionStatusHandler?.connectionResult = nil
+           connectionStatusHandler?.tokenResult = nil
+       }
+
+    public func sessionManager(manager: SPTSessionManager, didRenew session: SPTSession) {
+           
+       }
+
+    public func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
+        guard let appRemote = appRemote else {
+            connectionStatusHandler?.connectionResult?(FlutterError(code: "errorConnection", message: "AppRemote is null", details: nil))
+            connectionStatusHandler?.tokenResult?(FlutterError(code: "errorConnection", message: "AppRemote is null", details: nil))
+            connectionStatusHandler?.connectionResult = nil
+            connectionStatusHandler?.tokenResult = nil
+            return
+        }
+        appRemote.connectionParameters.accessToken = session.accessToken
+        appRemote.connect()
+    }
+    
     
 }
 
 extension SwiftSpotifySdkPlugin {
     public func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-        setAccessTokenFromURL(url: url)
+        if(self.sessionManager != nil){
+            return self.sessionManager!.application(application, open: url, options: options);
+        }else{
+            setAccessTokenFromURL(url: url)
+        }
         return true
     }
 
@@ -439,7 +458,7 @@ extension SwiftSpotifySdkPlugin {
             connectionStatusHandler?.tokenResult = nil
             return
         }
-
+        
         guard let token = appRemote.authorizationParameters(from: url)?[SPTAppRemoteAccessTokenKey] else {
             connectionStatusHandler?.connectionResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: nil))
             connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: nil))

@@ -15,6 +15,8 @@ import 'package:spotify_sdk/spotify_sdk.dart';
 import 'widgets/sized_icon_button.dart';
 
 Future<void> main() async {
+  SpotifySdk.tokenSwapURL = 'http://192.168.86.25:6001/spotify/token-ios';
+  SpotifySdk.tokenRefreshURL = 'http://192.168.86.25:6001/spotify/refresh';
   await dotenv.load(fileName: '.env');
   runApp(const Home());
 }
@@ -213,7 +215,7 @@ class _HomeState extends State<Home> {
             Text("Duration: ${crossfadeState?.duration}"),
           ],
         ),
-        _loading
+        false
             ? Container(
                 color: Colors.black12,
                 child: const Center(child: CircularProgressIndicator()))
@@ -429,19 +431,14 @@ class _HomeState extends State<Home> {
       setStatus(result
           ? 'connect to spotify successful'
           : 'connect to spotify failed');
-      setState(() {
-        _loading = false;
-      });
     } on PlatformException catch (e) {
-      setState(() {
-        _loading = false;
-      });
       setStatus(e.code, message: e.message);
     } on MissingPluginException {
+      setStatus('not implemented');
+    } finally {
       setState(() {
         _loading = false;
       });
-      setStatus('not implemented');
     }
   }
 
